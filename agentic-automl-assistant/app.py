@@ -10,6 +10,7 @@ if SRC_DIR not in sys.path:
     sys.path.append(SRC_DIR)
 
 from data_analyzer import analyze_dataset
+from preprocessor import preprocess_data
 
 st.set_page_config(page_title="Agentic AutoML Assistant", layout="wide")
 st.title("Agentic AutoML Assistant")
@@ -73,6 +74,16 @@ else:
     problem_type = "classification"
 
 st.write(f"Detected problem type: {problem_type}")
+
+st.subheader("Preprocessing")
+try:
+    X_processed, y_processed, prep_details = preprocess_data(df, target_col)
+    st.write(
+        f"Processed features shape: {prep_details['processed_shape'][0]} rows, "
+        f"{prep_details['processed_shape'][1]} features"
+    )
+except Exception as exc:
+    st.error(f"Preprocessing failed: {exc}")
 
 st.subheader("Numerical columns")
 if analysis["numerical_columns"]:
