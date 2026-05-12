@@ -1,6 +1,7 @@
 import os
 import sys
 
+import matplotlib.pyplot as plt
 import pandas as pd
 import streamlit as st
 from sklearn.model_selection import train_test_split
@@ -55,6 +56,20 @@ column_info_df = pd.DataFrame(
 )
 st.dataframe(column_info_df, use_container_width=True)
 
+st.subheader("Missing values chart")
+missing_counts = pd.Series(analysis["missing_values"])
+missing_counts = missing_counts[missing_counts > 0].sort_values(ascending=False)
+if missing_counts.empty:
+    st.info("No missing values found.")
+else:
+    fig, ax = plt.subplots()
+    ax.bar(range(len(missing_counts)), missing_counts.values)
+    ax.set_xticks(range(len(missing_counts)))
+    ax.set_xticklabels(missing_counts.index.astype(str), rotation=45, ha="right")
+    ax.set_ylabel("Missing values")
+    ax.set_title("Missing values by column")
+    st.pyplot(fig)
+
 st.subheader("Target selection")
 if df.shape[1] < 2:
     st.warning("Add at least 2 columns to select a target.")
@@ -77,6 +92,21 @@ else:
     problem_type = "classification"
 
 st.write(f"Detected problem type: {problem_type}")
+
+st.subheader("Target distribution")
+fig, ax = plt.subplots()
+if problem_type == "classification":
+    class_counts = y.astype(str).value_counts()
+    ax.bar(range(len(class_counts)), class_counts.values)
+    ax.set_xticks(range(len(class_counts)))
+    ax.set_xticklabels(class_counts.index, rotation=45, ha="right")
+    ax.set_ylabel("Count")
+else:
+    ax.hist(y.dropna(), bins=20)
+    ax.set_xlabel(target_col)
+    ax.set_ylabel("Count")
+ax.set_title("Target distribution")
+st.pyplot(fig)
 
 st.subheader("Preprocessing")
 try:
@@ -113,6 +143,20 @@ try:
                 if best_estimator is not None:
                     model_path = save_model(best_estimator, best_model)
                     st.success(f"Best model saved to: {model_path}")
+
+            metric_name = "f1" if problem_type == "classification" else "r2"
+            if metric_name in results_df.columns:
+                st.subheader("Model comparison")
+                labels = results_df["model"].astype(str).tolist()
+                values = results_df[metric_name].astype(float).tolist()
+
+                fig, ax = plt.subplots()
+                ax.bar(range(len(labels)), values)
+                ax.set_xticks(range(len(labels)))
+                ax.set_xticklabels(labels, rotation=45, ha="right")
+                ax.set_ylabel("F1 score" if metric_name == "f1" else "R2 score")
+                ax.set_title("Model comparison")
+                st.pyplot(fig)
 except Exception as exc:
     st.error(f"Preprocessing failed: {exc}")
 
