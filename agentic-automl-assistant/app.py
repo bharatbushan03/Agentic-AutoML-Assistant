@@ -4,19 +4,14 @@ import sys
 import matplotlib.pyplot as plt
 import pandas as pd
 import streamlit as st
-from sklearn.model_selection import train_test_split
 
 ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
 SRC_DIR = os.path.join(ROOT_DIR, "src")
 if SRC_DIR not in sys.path:
     sys.path.append(SRC_DIR)
 
+from agent import AutoMLAgent
 from assistant import answer_question
-from data_analyzer import analyze_dataset
-from evaluator import evaluate_models
-from model_trainer import save_model, train_models
-from report_generator import generate_report
-from preprocessor import preprocess_data
 
 st.set_page_config(page_title="Agentic AutoML Assistant", layout="wide")
 st.title("Agentic AutoML Assistant")
@@ -33,10 +28,38 @@ except Exception as exc:
     st.error(f"Failed to read CSV: {exc}")
     st.stop()
 
-analysis = analyze_dataset(df)
-
 st.subheader("Preview (first 10 rows)")
 st.dataframe(df.head(10), use_container_width=True)
+
+st.subheader("Target selection")
+if df.shape[1] < 2:
+    st.warning("Add at least 2 columns to select a target.")
+    st.stop()
+
+target_col = st.selectbox("Select target column", df.columns.tolist())
+X = df.drop(columns=[target_col])
+y = df[target_col]
+
+st.write(f"Selected target column: {target_col}")
+st.write("Feature columns:")
+st.write(", ".join(X.columns.tolist()))
+
+agent = AutoMLAgent()
+with st.spinner("Running AutoML pipeline..."):
+    try:
+        results = agent.run(df, target_col)
+    except Exception as exc:
+        st.error(f"AutoML pipeline failed: {exc}")
+        st.stop()
+
+analysis = results["dataset_analysis"]
+problem_type = results["problem_type"]
+results_df = results["evaluation_results"]
+best_model = results["best_model_name"]
+model_path = results["saved_model_path"]
+report_path = results["report_path"]
+
+st.write(f"Detected problem type: {problem_type}")
 
 st.subheader("Dataset shape")
 shape_cols = st.columns(2)
@@ -72,29 +95,6 @@ else:
     ax.set_title("Missing values by column")
     st.pyplot(fig)
 
-st.subheader("Target selection")
-if df.shape[1] < 2:
-    st.warning("Add at least 2 columns to select a target.")
-    st.stop()
-
-target_col = st.selectbox("Select target column", analysis["column_names"])
-X = df.drop(columns=[target_col])
-y = df[target_col]
-
-st.write(f"Selected target column: {target_col}")
-st.write("Feature columns:")
-st.write(", ".join(X.columns.tolist()))
-
-if pd.api.types.is_object_dtype(y) or pd.api.types.is_categorical_dtype(y):
-    problem_type = "classification"
-elif pd.api.types.is_numeric_dtype(y):
-    unique_count = int(y.nunique(dropna=True))
-    problem_type = "classification" if unique_count <= 20 else "regression"
-else:
-    problem_type = "classification"
-
-st.write(f"Detected problem type: {problem_type}")
-
 st.subheader("Target distribution")
 fig, ax = plt.subplots()
 if problem_type == "classification":
@@ -111,76 +111,56 @@ ax.set_title("Target distribution")
 st.pyplot(fig)
 
 st.subheader("Preprocessing")
-results_df = pd.DataFrame()
-best_model = None
-try:
-    X_processed, y_processed, prep_details = preprocess_data(df, target_col)
+processed_shape = results.get("processed_shape")
+if processed_shape:
     st.write(
-        f"Processed features shape: {prep_details['processed_shape'][0]} rows, "
-        f"{prep_details['processed_shape'][1]} features"
+        f"Processed features shape: {processed_shape[0]} rows, "
+        f"{processed_shape[1]} features"
     )
 
-    X_train, X_test, y_train, y_test = train_test_split(
-        X_processed, y_processed, test_size=0.2, random_state=42
+st.subheader("Train/test split")
+split_cols = st.columns(3)
+split_cols[0].metric("Training rows", results.get("train_rows", 0))
+split_cols[1].metric("Testing rows", results.get("test_rows", 0))
+split_cols[2].metric("Final features", results.get("final_features", 0))
+
+st.subheader("Model evaluation")
+if results_df is None or results_df.empty:
+    st.warning("No evaluation results available.")
+else:
+    st.dataframe(results_df, use_container_width=True)
+    if best_model:
+        st.write(f"Best model: {best_model}")
+        if model_path:
+            st.success(f"Best model saved to: {model_path}")
+
+    metric_name = "f1" if problem_type == "classification" else "r2"
+    if metric_name in results_df.columns:
+        st.subheader("Model comparison")
+        labels = results_df["model"].astype(str).tolist()
+        values = results_df[metric_name].astype(float).tolist()
+
+        fig, ax = plt.subplots()
+        ax.bar(range(len(labels)), values)
+        ax.set_xticks(range(len(labels)))
+        ax.set_xticklabels(labels, rotation=45, ha="right")
+        ax.set_ylabel("F1 score" if metric_name == "f1" else "R2 score")
+        ax.set_title("Model comparison")
+        st.pyplot(fig)
+
+st.subheader("Report")
+if report_path:
+    with open(report_path, "r", encoding="utf-8") as handle:
+        report_content = handle.read()
+    st.success(f"Report saved to: {report_path}")
+    st.download_button(
+        "Download report",
+        data=report_content,
+        file_name=os.path.basename(report_path),
+        mime="text/markdown",
     )
-    st.subheader("Train/test split")
-    split_cols = st.columns(3)
-    split_cols[0].metric("Training rows", X_train.shape[0])
-    split_cols[1].metric("Testing rows", X_test.shape[0])
-    split_cols[2].metric("Final features", X_train.shape[1])
-
-    st.subheader("Model evaluation")
-    models = train_models(X_train, y_train, problem_type)
-    if not models:
-        st.warning("No models were trained successfully.")
-    else:
-        results_df, best_model = evaluate_models(
-            models, X_test, y_test, problem_type
-        )
-        if results_df.empty:
-            st.warning("No evaluation results available.")
-        else:
-            st.dataframe(results_df, use_container_width=True)
-            if best_model:
-                st.write(f"Best model: {best_model}")
-                best_estimator = models.get(best_model)
-                if best_estimator is not None:
-                    model_path = save_model(best_estimator, best_model)
-                    st.success(f"Best model saved to: {model_path}")
-
-            metric_name = "f1" if problem_type == "classification" else "r2"
-            if metric_name in results_df.columns:
-                st.subheader("Model comparison")
-                labels = results_df["model"].astype(str).tolist()
-                values = results_df[metric_name].astype(float).tolist()
-
-                fig, ax = plt.subplots()
-                ax.bar(range(len(labels)), values)
-                ax.set_xticks(range(len(labels)))
-                ax.set_xticklabels(labels, rotation=45, ha="right")
-                ax.set_ylabel("F1 score" if metric_name == "f1" else "R2 score")
-                ax.set_title("Model comparison")
-                st.pyplot(fig)
-
-        st.subheader("Report")
-        report_path = generate_report(
-            dataset_analysis=analysis,
-            problem_type=problem_type,
-            target_column=target_col,
-            evaluation_results=results_df,
-            best_model_name=best_model,
-        )
-        with open(report_path, "r", encoding="utf-8") as handle:
-            report_content = handle.read()
-        st.success(f"Report saved to: {report_path}")
-        st.download_button(
-            "Download report",
-            data=report_content,
-            file_name=os.path.basename(report_path),
-            mime="text/markdown",
-        )
-except Exception as exc:
-    st.error(f"Preprocessing failed: {exc}")
+else:
+    st.warning("Report could not be generated.")
 
 st.subheader("Numerical columns")
 if analysis["numerical_columns"]:
