@@ -1,4 +1,5 @@
 import os
+from datetime import datetime
 import warnings
 from typing import Dict, List, Tuple
 
@@ -68,6 +69,20 @@ def train_models(X_train, y_train, problem_type: str) -> Dict[str, object]:
             warnings.warn(f"Model '{name}' failed to train: {exc}")
 
     return trained_models
+
+
+def save_model(model, model_name: str) -> str:
+    root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    model_dir = os.path.join(root_dir, "models")
+    os.makedirs(model_dir, exist_ok=True)
+
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    safe_name = model_name.replace(" ", "_").lower()
+    filename = f"{safe_name}_{timestamp}.joblib"
+    file_path = os.path.join(model_dir, filename)
+
+    joblib.dump(model, file_path)
+    return file_path
 
 
 def _metric_score(metrics: Dict[str, float], metric: str) -> float:

@@ -12,7 +12,7 @@ if SRC_DIR not in sys.path:
 
 from data_analyzer import analyze_dataset
 from evaluator import evaluate_models
-from model_trainer import train_models
+from model_trainer import save_model, train_models
 from preprocessor import preprocess_data
 
 st.set_page_config(page_title="Agentic AutoML Assistant", layout="wide")
@@ -109,6 +109,10 @@ try:
             st.dataframe(results_df, use_container_width=True)
             if best_model:
                 st.write(f"Best model: {best_model}")
+                best_estimator = models.get(best_model)
+                if best_estimator is not None:
+                    model_path = save_model(best_estimator, best_model)
+                    st.success(f"Best model saved to: {model_path}")
 except Exception as exc:
     st.error(f"Preprocessing failed: {exc}")
 
