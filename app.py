@@ -18,9 +18,13 @@ st.set_page_config(page_title="Agentic AutoML Assistant", layout="wide")
 st.title("Agentic AutoML Assistant")
 st.write("Upload a CSV file to preview your dataset and see basic stats.")
 
-uploaded_file = st.file_uploader("Upload CSV", type=["csv"])
+uploaded_file = st.file_uploader("Upload CSV")
 if uploaded_file is None:
     st.info("Upload a CSV file to get started.")
+    st.stop()
+
+if not uploaded_file.name.lower().endswith(".csv"):
+    st.error("Invalid file format. Please upload a CSV file.")
     st.stop()
 
 try:
@@ -43,7 +47,7 @@ if df.empty or df.shape[1] == 0:
     st.stop()
 
 st.subheader("Preview (first 10 rows)")
-st.dataframe(df.head(10), use_container_width=True)
+st.dataframe(df.head(10), width="stretch")
 
 st.subheader("Target selection")
 if df.shape[1] < 2:
@@ -118,7 +122,7 @@ column_info_df = pd.DataFrame(
         ],
     }
 )
-st.dataframe(column_info_df, use_container_width=True)
+st.dataframe(column_info_df, width="stretch")
 
 st.subheader("Missing values chart")
 missing_counts = pd.Series(analysis["missing_values"])
@@ -171,7 +175,7 @@ st.subheader("Model evaluation")
 if results_df is None or results_df.empty:
     st.warning("No evaluation results available.")
 else:
-    st.dataframe(results_df, use_container_width=True)
+    st.dataframe(results_df, width="stretch")
     if best_model:
         st.write(f"Best model: {best_model}")
         if model_path:
@@ -220,7 +224,7 @@ else:
 st.subheader("Numerical summary")
 if analysis["numerical_summary"]:
     summary_df = pd.DataFrame(analysis["numerical_summary"]).T
-    st.dataframe(summary_df, use_container_width=True)
+    st.dataframe(summary_df, width="stretch")
 else:
     st.info("No numerical columns found.")
 

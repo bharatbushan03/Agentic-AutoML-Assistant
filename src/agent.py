@@ -37,8 +37,8 @@ class AutoMLAgent:
 
     def detect_problem_type(self, target_series: pd.Series) -> str:
         """Infer classification or regression from the target series."""
-        if pd.api.types.is_object_dtype(target_series) or pd.api.types.is_categorical_dtype(
-            target_series
+        if pd.api.types.is_object_dtype(target_series) or isinstance(
+            target_series.dtype, pd.CategoricalDtype
         ):
             return "classification"
         if pd.api.types.is_numeric_dtype(target_series):

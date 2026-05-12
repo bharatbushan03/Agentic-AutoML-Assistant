@@ -1,5 +1,6 @@
 from typing import Dict, List, Tuple
 
+import numpy as np
 import pandas as pd
 from sklearn.compose import ColumnTransformer
 from sklearn.impute import SimpleImputer
@@ -26,13 +27,19 @@ def preprocess_data(
     y = df[target_column]
 
     numeric_cols = X.select_dtypes(include="number").columns.tolist()
-    categorical_cols = [col for col in X.columns if col not in numeric_cols]
+    numeric_cols = [col for col in numeric_cols if not X[col].isna().all()]
+    categorical_cols = [
+        col
+        for col in X.columns
+        if col not in numeric_cols and not X[col].isna().all()
+    ]
 
     transformers = []
     if numeric_cols:
         numeric_pipe = Pipeline(
             [
                 ("imputer", SimpleImputer(strategy="median")),
+                ("scaler", StandardScaler()),
             ]
         )
         transformers.append(("num", numeric_pipe, numeric_cols))
@@ -50,7 +57,21 @@ def preprocess_data(
         raise ValueError("No usable feature columns found.")
 
     preprocessor = ColumnTransformer(transformers)
-    X_processed = preprocessor.fit_transform(X)
+    try:
+        X_processed = preprocessor.fit_transform(X)
+    except ValueError as exc:
+        if "0 feature(s)" in str(exc):
+            raise ValueError("No usable feature columns found.") from exc
+        raise
+
+    if X_processed.shape[1] == 0:
+        raise ValueError("No usable feature columns found.")
+
+    processed_values = (
+        X_processed.toarray() if hasattr(X_processed, "toarray") else X_processed
+    )
+    if np.isnan(processed_values).any():
+        raise ValueError("Preprocessing failed because missing values remain.")
 
     feature_names = None
     try:
@@ -75,7 +96,12 @@ def build_preprocessor(
     """Build a ColumnTransformer for numeric and categorical features."""
     features = df.drop(columns=[target_col])
     numeric_cols = features.select_dtypes(include="number").columns.tolist()
-    categorical_cols = [col for col in features.columns if col not in numeric_cols]
+    numeric_cols = [col for col in numeric_cols if not features[col].isna().all()]
+    categorical_cols = [
+        col
+        for col in features.columns
+        if col not in numeric_cols and not features[col].isna().all()
+    ]
 
     transformers = []
     if numeric_cols:
