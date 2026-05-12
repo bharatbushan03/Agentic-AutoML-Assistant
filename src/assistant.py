@@ -3,6 +3,10 @@ from typing import Dict, Optional
 
 import pandas as pd
 
+DEFAULT_NVIDIA_BASE_URL = "https://integrate.api.nvidia.com/v1"
+DEFAULT_NVIDIA_MODEL = "nvidia/nvidia-nemotron-nano-9b-v2"
+DEFAULT_NVIDIA_MAX_TOKENS = 512
+
 
 def _format_evaluation_results(evaluation_results: Optional[pd.DataFrame]) -> str:
     """Format evaluation results into a compact text table."""
@@ -65,15 +69,26 @@ def _build_context(
 
 
 def _get_llm_client():
-    """Create an OpenAI client when an API key is available."""
-    api_key = os.getenv("OPENAI_API_KEY")
+    """Create a NVIDIA NIM client when an API key is available."""
+    api_key = os.getenv("NVIDIA_API_KEY")
     if not api_key:
         return None
     try:
         from openai import OpenAI
     except Exception:
         return None
-    return OpenAI(api_key=api_key)
+
+    base_url = os.getenv("NVIDIA_BASE_URL", DEFAULT_NVIDIA_BASE_URL)
+    return OpenAI(api_key=api_key, base_url=base_url, timeout=20)
+
+
+def _get_max_tokens() -> int:
+    """Return a safe max token limit for fast assistant responses."""
+    raw_value = os.getenv("NVIDIA_MAX_TOKENS", str(DEFAULT_NVIDIA_MAX_TOKENS))
+    try:
+        return max(64, int(raw_value))
+    except ValueError:
+        return DEFAULT_NVIDIA_MAX_TOKENS
 
 
 def _fallback_answer(
@@ -144,13 +159,14 @@ def answer_question(
     client = _get_llm_client()
     if client is not None:
         try:
-            model_name = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
+            model_name = os.getenv("NVIDIA_MODEL", DEFAULT_NVIDIA_MODEL)
             response = client.chat.completions.create(
                 model=model_name,
                 messages=[
                     {
                         "role": "system",
                         "content": (
+                            "/no_think\n"
                             "You are a helpful AutoML assistant. Use the provided "
                             "context to answer user questions concisely. If the "
                             "context is missing details, state that and give a "
@@ -162,7 +178,8 @@ def answer_question(
                         "content": f"Context:\n{context}\n\nQuestion: {question}",
                     },
                 ],
-                temperature=0.2,
+                temperature=0,
+                max_tokens=_get_max_tokens(),
             )
             return response.choices[0].message.content.strip()
         except Exception:
