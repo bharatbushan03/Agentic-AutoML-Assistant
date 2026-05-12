@@ -14,6 +14,7 @@ if SRC_DIR not in sys.path:
 from data_analyzer import analyze_dataset
 from evaluator import evaluate_models
 from model_trainer import save_model, train_models
+from report_generator import generate_report
 from preprocessor import preprocess_data
 
 st.set_page_config(page_title="Agentic AutoML Assistant", layout="wide")
@@ -157,6 +158,24 @@ try:
                 ax.set_ylabel("F1 score" if metric_name == "f1" else "R2 score")
                 ax.set_title("Model comparison")
                 st.pyplot(fig)
+
+        st.subheader("Report")
+        report_path = generate_report(
+            dataset_analysis=analysis,
+            problem_type=problem_type,
+            target_column=target_col,
+            evaluation_results=results_df,
+            best_model_name=best_model,
+        )
+        with open(report_path, "r", encoding="utf-8") as handle:
+            report_content = handle.read()
+        st.success(f"Report saved to: {report_path}")
+        st.download_button(
+            "Download report",
+            data=report_content,
+            file_name=os.path.basename(report_path),
+            mime="text/markdown",
+        )
 except Exception as exc:
     st.error(f"Preprocessing failed: {exc}")
 
