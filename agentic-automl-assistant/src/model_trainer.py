@@ -1,0 +1,92 @@
+import os
+from typing import Dict, List, Tuple
+
+import joblib
+from sklearn.ensemble import (
+    GradientBoostingClassifier,
+    GradientBoostingRegressor,
+    RandomForestClassifier,
+    RandomForestRegressor,
+)
+from sklearn.linear_model import LinearRegression, LogisticRegression
+from sklearn.model_selection import train_test_split
+from sklearn.pipeline import Pipeline
+
+from evaluator import evaluate_classification, evaluate_regression
+
+
+def get_candidate_models(task_type: str):
+    if task_type == "classification":
+        return [
+            ("log_reg", LogisticRegression(max_iter=500)),
+            ("rf_clf", RandomForestClassifier(n_estimators=200, random_state=42)),
+            ("gb_clf", GradientBoostingClassifier(random_state=42)),
+        ]
+
+    return [
+        ("lin_reg", LinearRegression()),
+        ("rf_reg", RandomForestRegressor(n_estimators=200, random_state=42)),
+        ("gb_reg", GradientBoostingRegressor(random_state=42)),
+    ]
+
+
+def _metric_score(metrics: Dict[str, float], metric: str) -> float:
+    if metric not in metrics:
+        raise ValueError(f"Metric '{metric}' is not available in results.")
+    value = metrics[metric]
+    if metric in {"rmse", "mae"}:
+        return -value
+    return value
+
+
+def train_and_select_model(
+    df,
+    target_col: str,
+    preprocessor,
+    task_type: str,
+    metric: str,
+    model_dir: str,
+):
+    X = df.drop(columns=[target_col])
+    y = df[target_col]
+
+    stratify = None
+    if task_type == "classification" and y.nunique() > 1:
+        min_class_count = y.value_counts().min()
+        if min_class_count >= 2:
+            stratify = y
+
+    try:
+        X_train, X_test, y_train, y_test = train_test_split(
+            X, y, test_size=0.2, random_state=42, stratify=stratify
+        )
+    except ValueError:
+        X_train, X_test, y_train, y_test = train_test_split(
+            X, y, test_size=0.2, random_state=42
+        )
+
+    best = None
+    all_results: List[Dict[str, float]] = []
+
+    for name, model in get_candidate_models(task_type):
+        pipeline = Pipeline([("preprocess", preprocessor), ("model", model)])
+        pipeline.fit(X_train, y_train)
+
+        if task_type == "classification":
+            metrics = evaluate_classification(pipeline, X_test, y_test)
+        else:
+            metrics = evaluate_regression(pipeline, X_test, y_test)
+
+        result_row = {"model": name}
+        result_row.update(metrics)
+        all_results.append(result_row)
+
+        score = _metric_score(metrics, metric)
+        if best is None or score > best["score"]:
+            best = {"name": name, "model": pipeline, "score": score, "metrics": metrics}
+
+    os.makedirs(model_dir, exist_ok=True)
+    model_path = os.path.join(model_dir, f"{best['name']}.joblib")
+    joblib.dump(best["model"], model_path)
+
+    return best, all_results, model_path
