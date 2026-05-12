@@ -73,6 +73,7 @@ progress_placeholder = st.empty()
 
 
 def on_step(message: str) -> None:
+    """Append a progress message and refresh the UI list."""
     progress_messages.append(message)
     progress_placeholder.markdown(
         "\n".join(f"- {msg}" for msg in progress_messages)
@@ -136,17 +137,21 @@ else:
 st.subheader("Target distribution")
 fig, ax = plt.subplots()
 if problem_type == "classification":
-    class_counts = y.astype(str).value_counts()
-    ax.bar(range(len(class_counts)), class_counts.values)
-    ax.set_xticks(range(len(class_counts)))
-    ax.set_xticklabels(class_counts.index, rotation=45, ha="right")
-    ax.set_ylabel("Count")
+    class_counts = y.dropna().astype(str).value_counts()
+    if class_counts.empty:
+        st.info("No target values available to plot.")
+    else:
+        ax.bar(range(len(class_counts)), class_counts.values)
+        ax.set_xticks(range(len(class_counts)))
+        ax.set_xticklabels(class_counts.index, rotation=45, ha="right")
+        ax.set_ylabel("Count")
 else:
     ax.hist(y.dropna(), bins=20)
     ax.set_xlabel(target_col)
     ax.set_ylabel("Count")
 ax.set_title("Target distribution")
-st.pyplot(fig)
+if problem_type != "classification" or not class_counts.empty:
+    st.pyplot(fig)
 
 st.subheader("Preprocessing")
 processed_shape = results.get("processed_shape")

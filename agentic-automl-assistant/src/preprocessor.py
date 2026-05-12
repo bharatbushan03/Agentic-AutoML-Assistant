@@ -8,6 +8,7 @@ from sklearn.preprocessing import OneHotEncoder, StandardScaler
 
 
 def _make_one_hot_encoder() -> OneHotEncoder:
+    """Create a one-hot encoder compatible with older scikit-learn versions."""
     try:
         return OneHotEncoder(handle_unknown="ignore", sparse_output=False)
     except TypeError:
@@ -17,6 +18,7 @@ def _make_one_hot_encoder() -> OneHotEncoder:
 def preprocess_data(
     df: pd.DataFrame, target_column: str
 ) -> Tuple[object, pd.Series, Dict[str, object]]:
+    """Split features/target, impute missing values, and one-hot encode."""
     if target_column not in df.columns:
         raise ValueError("Target column not found in dataframe.")
 
@@ -70,6 +72,7 @@ def preprocess_data(
 def build_preprocessor(
     df: pd.DataFrame, target_col: str
 ) -> Tuple[ColumnTransformer, List[str], List[str]]:
+    """Build a ColumnTransformer for numeric and categorical features."""
     features = df.drop(columns=[target_col])
     numeric_cols = features.select_dtypes(include="number").columns.tolist()
     categorical_cols = [col for col in features.columns if col not in numeric_cols]

@@ -14,6 +14,7 @@ from sklearn.metrics import (
 
 
 def evaluate_classification(model, X_test, y_test) -> Dict[str, float]:
+    """Compute classification metrics for a trained model."""
     y_pred = model.predict(X_test)
     return {
         "accuracy": float(accuracy_score(y_test, y_pred)),
@@ -26,6 +27,7 @@ def evaluate_classification(model, X_test, y_test) -> Dict[str, float]:
 
 
 def evaluate_regression(model, X_test, y_test) -> Dict[str, float]:
+    """Compute regression metrics for a trained model."""
     y_pred = model.predict(X_test)
     mse = mean_squared_error(y_test, y_pred)
     rmse = mse ** 0.5
@@ -39,6 +41,7 @@ def evaluate_regression(model, X_test, y_test) -> Dict[str, float]:
 def evaluate_models(
     models: Dict[str, object], X_test, y_test, problem_type: str
 ) -> Tuple[pd.DataFrame, Optional[str]]:
+    """Evaluate all models and return a results table and best model name."""
     if not models:
         return pd.DataFrame(), None
 

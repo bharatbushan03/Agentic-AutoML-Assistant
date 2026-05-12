@@ -14,6 +14,7 @@ def generate_markdown_report(
     dataset_summary: Dict,
     model_path: str,
 ) -> str:
+    """Generate a basic Markdown report for the legacy pipeline."""
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     metric_names = [key for key in best_metrics.keys()]
 
@@ -60,6 +61,7 @@ def generate_markdown_report(
 
 
 def _markdown_table(headers: List[str], rows: List[List[str]]) -> List[str]:
+    """Build a Markdown table from headers and rows."""
     if not headers:
         return []
     lines = []
@@ -77,6 +79,7 @@ def generate_report(
     evaluation_results: Optional[pd.DataFrame],
     best_model_name: Optional[str],
 ) -> str:
+    """Generate and save a Markdown report for the current pipeline."""
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     lines = [
         "# Agentic AutoML Assistant Report",

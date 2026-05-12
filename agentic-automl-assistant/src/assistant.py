@@ -5,6 +5,7 @@ import pandas as pd
 
 
 def _format_evaluation_results(evaluation_results: Optional[pd.DataFrame]) -> str:
+    """Format evaluation results into a compact text table."""
     if evaluation_results is None or evaluation_results.empty:
         return "No evaluation results available."
 
@@ -18,6 +19,7 @@ def _format_evaluation_results(evaluation_results: Optional[pd.DataFrame]) -> st
 def _get_best_row(
     evaluation_results: Optional[pd.DataFrame], best_model_name: Optional[str]
 ) -> Optional[Dict[str, object]]:
+    """Return the metrics row for the best model, if available."""
     if evaluation_results is None or evaluation_results.empty or not best_model_name:
         return None
     row = evaluation_results[evaluation_results["model"] == best_model_name]
@@ -33,6 +35,7 @@ def _build_context(
     evaluation_results: Optional[pd.DataFrame],
     best_model_name: Optional[str],
 ) -> str:
+    """Build a concise context string for the LLM assistant."""
     missing_values = dataset_analysis.get("missing_values", {})
     missing_pairs = [
         f"{col}: {count}" for col, count in missing_values.items() if count
@@ -62,6 +65,7 @@ def _build_context(
 
 
 def _get_llm_client():
+    """Create an OpenAI client when an API key is available."""
     api_key = os.getenv("OPENAI_API_KEY")
     if not api_key:
         return None
@@ -80,6 +84,7 @@ def _fallback_answer(
     evaluation_results: Optional[pd.DataFrame],
     best_model_name: Optional[str],
 ) -> str:
+    """Answer common questions without an LLM."""
     normalized = question.lower()
     best_row = _get_best_row(evaluation_results, best_model_name)
 
@@ -127,6 +132,7 @@ def answer_question(
     evaluation_results: Optional[pd.DataFrame],
     best_model_name: Optional[str],
 ) -> str:
+    """Answer a user question using LLM context or a fallback response."""
     context = _build_context(
         dataset_analysis=dataset_analysis,
         problem_type=problem_type,

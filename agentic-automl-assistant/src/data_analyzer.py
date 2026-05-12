@@ -2,12 +2,14 @@ import pandas as pd
 
 
 def _to_python_value(value):
+    """Convert numpy scalars to Python-native values."""
     if hasattr(value, "item"):
         return value.item()
     return value
 
 
 def _normalize_nested_dict(data: dict) -> dict:
+    """Normalize nested dict values into JSON-serializable types."""
     normalized = {}
     for key, values in data.items():
         normalized[key] = {k: _to_python_value(v) for k, v in values.items()}
@@ -15,6 +17,7 @@ def _normalize_nested_dict(data: dict) -> dict:
 
 
 def analyze_dataset(df: pd.DataFrame) -> dict:
+    """Return dataset structure, missing values, and summary statistics."""
     numeric_cols = df.select_dtypes(include="number").columns.tolist()
     categorical_cols = [col for col in df.columns if col not in numeric_cols]
 
@@ -36,6 +39,7 @@ def analyze_dataset(df: pd.DataFrame) -> dict:
 
 
 def analyze_dataframe(df: pd.DataFrame) -> dict:
+    """Return a compact dataset summary for quick inspection."""
     dataset = analyze_dataset(df)
 
     return {
@@ -50,6 +54,7 @@ def analyze_dataframe(df: pd.DataFrame) -> dict:
 
 
 def guess_task_type(target_series: pd.Series, classification_threshold: int = 20) -> str:
+    """Guess classification vs regression based on target cardinality."""
     if pd.api.types.is_numeric_dtype(target_series):
         unique_count = target_series.nunique(dropna=True)
         if unique_count <= classification_threshold:

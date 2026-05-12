@@ -1,7 +1,7 @@
 import os
 from datetime import datetime
 import warnings
-from typing import Dict, List, Tuple
+from typing import Dict, List
 
 import joblib
 from sklearn.ensemble import (
@@ -18,6 +18,7 @@ from evaluator import evaluate_classification, evaluate_regression
 
 
 def get_candidate_models(task_type: str):
+    """Return baseline estimators for the requested task type."""
     if task_type == "classification":
         return [
             ("log_reg", LogisticRegression(max_iter=500)),
@@ -33,6 +34,7 @@ def get_candidate_models(task_type: str):
 
 
 def train_models(X_train, y_train, problem_type: str) -> Dict[str, object]:
+    """Train baseline models and return those that succeed."""
     if problem_type == "classification":
         candidates = [
             ("logistic_regression", LogisticRegression(max_iter=500)),
@@ -72,6 +74,7 @@ def train_models(X_train, y_train, problem_type: str) -> Dict[str, object]:
 
 
 def save_model(model, model_name: str) -> str:
+    """Persist a trained model to the models folder with a timestamp."""
     root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     model_dir = os.path.join(root_dir, "models")
     os.makedirs(model_dir, exist_ok=True)
@@ -86,6 +89,7 @@ def save_model(model, model_name: str) -> str:
 
 
 def _metric_score(metrics: Dict[str, float], metric: str) -> float:
+    """Normalize metrics so higher is better for comparisons."""
     if metric not in metrics:
         raise ValueError(f"Metric '{metric}' is not available in results.")
     value = metrics[metric]
@@ -102,6 +106,7 @@ def train_and_select_model(
     metric: str,
     model_dir: str,
 ):
+    """Train pipeline models, score them, and save the best model."""
     X = df.drop(columns=[target_col])
     y = df[target_col]
 

@@ -11,12 +11,15 @@ from report_generator import generate_report
 
 
 class AutoMLAgent:
+    """Coordinate the AutoML workflow steps."""
+
     def __init__(
         self,
         test_size: float = 0.2,
         random_state: int = 42,
         max_target_missing_ratio: float = 0.5,
     ) -> None:
+        """Initialize the agent with split and validation settings."""
         self.test_size = test_size
         self.random_state = random_state
         self.max_target_missing_ratio = max_target_missing_ratio
@@ -27,11 +30,13 @@ class AutoMLAgent:
         message: str,
         on_step: Optional[Callable[[str], None]],
     ) -> None:
+        """Record a progress message and optionally stream it to the UI."""
         messages.append(message)
         if on_step:
             on_step(message)
 
     def detect_problem_type(self, target_series: pd.Series) -> str:
+        """Infer classification or regression from the target series."""
         if pd.api.types.is_object_dtype(target_series) or pd.api.types.is_categorical_dtype(
             target_series
         ):
@@ -47,6 +52,7 @@ class AutoMLAgent:
         target_column: str,
         on_step: Optional[Callable[[str], None]] = None,
     ) -> Dict[str, object]:
+        """Run the full pipeline and return results and artifacts."""
         if df is None or df.empty or df.shape[1] == 0:
             raise ValueError("The uploaded CSV is empty or has no columns.")
         if df.shape[1] < 2:
@@ -54,11 +60,18 @@ class AutoMLAgent:
         if target_column not in df.columns:
             raise ValueError("Target column not found in the dataset.")
 
-        target_missing_ratio = float(df[target_column].isna().mean())
+        target_series = df[target_column]
+        target_missing_ratio = float(target_series.isna().mean())
         if target_missing_ratio > self.max_target_missing_ratio:
             raise ValueError(
                 "Target column has too many missing values. "
                 "Please choose another column or clean the data."
+            )
+
+        df_clean = df.loc[target_series.notna()].copy()
+        if df_clean.shape[0] < 2:
+            raise ValueError(
+                "Not enough rows after removing missing target values."
             )
 
         messages: List[str] = []
@@ -66,7 +79,7 @@ class AutoMLAgent:
         dataset_analysis = analyze_dataset(df)
 
         self._emit(messages, "Detecting problem type...", on_step)
-        y = df[target_column]
+        y = df_clean[target_column]
         problem_type = self.detect_problem_type(y)
 
         self._emit(
@@ -75,7 +88,9 @@ class AutoMLAgent:
             on_step,
         )
         try:
-            X_processed, y_processed, prep_details = preprocess_data(df, target_column)
+            X_processed, y_processed, prep_details = preprocess_data(
+                df_clean, target_column
+            )
         except ValueError as exc:
             if "No usable feature columns" in str(exc):
                 raise ValueError(
