@@ -11,6 +11,8 @@ if SRC_DIR not in sys.path:
     sys.path.append(SRC_DIR)
 
 from data_analyzer import analyze_dataset
+from evaluator import evaluate_models
+from model_trainer import train_models
 from preprocessor import preprocess_data
 
 st.set_page_config(page_title="Agentic AutoML Assistant", layout="wide")
@@ -92,6 +94,21 @@ try:
     split_cols[0].metric("Training rows", X_train.shape[0])
     split_cols[1].metric("Testing rows", X_test.shape[0])
     split_cols[2].metric("Final features", X_train.shape[1])
+
+    st.subheader("Model evaluation")
+    models = train_models(X_train, y_train, problem_type)
+    if not models:
+        st.warning("No models were trained successfully.")
+    else:
+        results_df, best_model = evaluate_models(
+            models, X_test, y_test, problem_type
+        )
+        if results_df.empty:
+            st.warning("No evaluation results available.")
+        else:
+            st.dataframe(results_df, use_container_width=True)
+            if best_model:
+                st.write(f"Best model: {best_model}")
 except Exception as exc:
     st.error(f"Preprocessing failed: {exc}")
 
