@@ -1,6 +1,6 @@
 # Agentic AutoML Assistant
 
-A beginner-friendly Streamlit app that lets you upload a CSV dataset, run an end-to-end AutoML pipeline, and get model comparisons, saved artifacts, and a Markdown report. It also includes an optional LLM-powered assistant for dataset and model Q&A.
+A beginner-friendly Streamlit app that lets you upload a CSV dataset, run an end-to-end AutoML pipeline, and get model comparisons, saved artifacts, and a Markdown report. It also includes an optional NVIDIA NIM-powered assistant for dataset and model Q&A.
 
 ## Features
 - CSV upload and data preview
@@ -20,7 +20,7 @@ A beginner-friendly Streamlit app that lets you upload a CSV dataset, run an end
 - scikit-learn
 - matplotlib
 - joblib
-- openai (optional, for the assistant)
+- openai client library (optional, used with NVIDIA's OpenAI-compatible NIM endpoint)
 
 ## Folder Structure
 ```
@@ -61,13 +61,15 @@ A beginner-friendly Streamlit app that lets you upload a CSV dataset, run an end
 	pip install -r requirements.txt
 	```
 
-Optional: enable the assistant by setting an API key in your environment.
+Optional: enable the assistant by setting a NVIDIA API key in your environment.
 ```bash
-setx OPENAI_API_KEY "your_api_key_here"
+setx NVIDIA_API_KEY "your_nvidia_api_key_here"
 ```
-You can also set a model name (default is gpt-4o-mini):
+You can also set the NVIDIA model and endpoint. The default is tuned for fast, concise responses:
 ```bash
-setx OPENAI_MODEL "gpt-4o-mini"
+setx NVIDIA_MODEL "nvidia/nvidia-nemotron-nano-9b-v2"
+setx NVIDIA_BASE_URL "https://integrate.api.nvidia.com/v1"
+setx NVIDIA_MAX_TOKENS "512"
 ```
 
 Alternatively, copy the example file and fill in values:
@@ -76,8 +78,10 @@ copy .env.example .env
 ```
 
 ## Environment Variables
-- OPENAI_API_KEY: enables the LLM assistant (optional)
-- OPENAI_MODEL: model name (default: gpt-4o-mini)
+- NVIDIA_API_KEY: enables the NVIDIA NIM assistant (optional)
+- NVIDIA_MODEL: model name (default: nvidia/nvidia-nemotron-nano-9b-v2)
+- NVIDIA_BASE_URL: NVIDIA's OpenAI-compatible endpoint (default: https://integrate.api.nvidia.com/v1)
+- NVIDIA_MAX_TOKENS: response length cap for faster answers (default: 512)
 
 ## How to Run the App
 ```bash
@@ -91,7 +95,7 @@ docker build -t agentic-automl-assistant .
 ```
 Run the container:
 ```bash
-docker run -p 8501:8501 -e OPENAI_API_KEY=your_api_key_here agentic-automl-assistant
+docker run -p 8501:8501 -e NVIDIA_API_KEY=your_nvidia_api_key_here agentic-automl-assistant
 ```
 
 ## Render Deployment
@@ -99,7 +103,7 @@ This repo includes a render.yaml for one-click deployment.
 1. Push the repo to GitHub.
 2. Create a new Web Service on Render and connect your repo.
 3. Render detects the Dockerfile and uses render.yaml.
-4. Add environment variables in the Render dashboard (OPENAI_API_KEY, OPENAI_MODEL).
+4. Add environment variables in the Render dashboard (NVIDIA_API_KEY, NVIDIA_MODEL, NVIDIA_BASE_URL, NVIDIA_MAX_TOKENS).
 
 ## How to Use the App
 1. Upload a CSV file.

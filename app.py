@@ -232,9 +232,9 @@ st.subheader("Assistant")
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
 
-if not os.getenv("OPENAI_API_KEY"):
+if not os.getenv("NVIDIA_API_KEY"):
     st.info(
-        "Set OPENAI_API_KEY to enable LLM responses. A fallback responder will be used otherwise."
+        "Set NVIDIA_API_KEY to enable NVIDIA NIM responses. A fallback responder will be used otherwise."
     )
 
 for message in st.session_state.chat_history:
