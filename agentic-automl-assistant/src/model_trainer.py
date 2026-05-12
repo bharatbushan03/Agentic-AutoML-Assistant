@@ -1,4 +1,5 @@
 import os
+import warnings
 from typing import Dict, List, Tuple
 
 import joblib
@@ -28,6 +29,45 @@ def get_candidate_models(task_type: str):
         ("rf_reg", RandomForestRegressor(n_estimators=200, random_state=42)),
         ("gb_reg", GradientBoostingRegressor(random_state=42)),
     ]
+
+
+def train_models(X_train, y_train, problem_type: str) -> Dict[str, object]:
+    if problem_type == "classification":
+        candidates = [
+            ("logistic_regression", LogisticRegression(max_iter=500)),
+            (
+                "random_forest_classifier",
+                RandomForestClassifier(n_estimators=200, random_state=42),
+            ),
+            (
+                "gradient_boosting_classifier",
+                GradientBoostingClassifier(random_state=42),
+            ),
+        ]
+    elif problem_type == "regression":
+        candidates = [
+            ("linear_regression", LinearRegression()),
+            (
+                "random_forest_regressor",
+                RandomForestRegressor(n_estimators=200, random_state=42),
+            ),
+            (
+                "gradient_boosting_regressor",
+                GradientBoostingRegressor(random_state=42),
+            ),
+        ]
+    else:
+        raise ValueError("problem_type must be 'classification' or 'regression'.")
+
+    trained_models: Dict[str, object] = {}
+    for name, model in candidates:
+        try:
+            model.fit(X_train, y_train)
+            trained_models[name] = model
+        except Exception as exc:
+            warnings.warn(f"Model '{name}' failed to train: {exc}")
+
+    return trained_models
 
 
 def _metric_score(metrics: Dict[str, float], metric: str) -> float:
