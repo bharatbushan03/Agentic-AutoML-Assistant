@@ -51,6 +51,29 @@ column_info_df = pd.DataFrame(
 )
 st.dataframe(column_info_df, use_container_width=True)
 
+st.subheader("Target selection")
+if df.shape[1] < 2:
+    st.warning("Add at least 2 columns to select a target.")
+    st.stop()
+
+target_col = st.selectbox("Select target column", analysis["column_names"])
+X = df.drop(columns=[target_col])
+y = df[target_col]
+
+st.write(f"Selected target column: {target_col}")
+st.write("Feature columns:")
+st.write(", ".join(X.columns.tolist()))
+
+if pd.api.types.is_object_dtype(y) or pd.api.types.is_categorical_dtype(y):
+    problem_type = "classification"
+elif pd.api.types.is_numeric_dtype(y):
+    unique_count = int(y.nunique(dropna=True))
+    problem_type = "classification" if unique_count <= 20 else "regression"
+else:
+    problem_type = "classification"
+
+st.write(f"Detected problem type: {problem_type}")
+
 st.subheader("Numerical columns")
 if analysis["numerical_columns"]:
     st.write(", ".join(analysis["numerical_columns"]))
