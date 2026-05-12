@@ -24,10 +24,15 @@ A beginner-friendly Streamlit app that lets you upload a CSV dataset, run an end
 
 ## Folder Structure
 ```
-agentic-automl-assistant/
+.
 ├── app.py
 ├── requirements.txt
 ├── README.md
+├── Dockerfile
+├── render.yaml
+├── .env.example
+├── .gitignore
+├── .dockerignore
 ├── src/
 │   ├── agent.py
 │   ├── assistant.py
@@ -65,10 +70,36 @@ You can also set a model name (default is gpt-4o-mini):
 setx OPENAI_MODEL "gpt-4o-mini"
 ```
 
+Alternatively, copy the example file and fill in values:
+```bash
+copy .env.example .env
+```
+
+## Environment Variables
+- OPENAI_API_KEY: enables the LLM assistant (optional)
+- OPENAI_MODEL: model name (default: gpt-4o-mini)
+
 ## How to Run the App
 ```bash
 streamlit run app.py
 ```
+
+## Docker (Production)
+Build the image:
+```bash
+docker build -t agentic-automl-assistant .
+```
+Run the container:
+```bash
+docker run -p 8501:8501 -e OPENAI_API_KEY=your_api_key_here agentic-automl-assistant
+```
+
+## Render Deployment
+This repo includes a render.yaml for one-click deployment.
+1. Push the repo to GitHub.
+2. Create a new Web Service on Render and connect your repo.
+3. Render detects the Dockerfile and uses render.yaml.
+4. Add environment variables in the Render dashboard (OPENAI_API_KEY, OPENAI_MODEL).
 
 ## How to Use the App
 1. Upload a CSV file.
