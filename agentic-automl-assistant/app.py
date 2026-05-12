@@ -45,9 +45,21 @@ st.write("Feature columns:")
 st.write(", ".join(X.columns.tolist()))
 
 agent = AutoMLAgent()
+st.subheader("Agent progress")
+progress_messages = []
+progress_placeholder = st.empty()
+
+
+def on_step(message: str) -> None:
+    progress_messages.append(message)
+    progress_placeholder.markdown(
+        "\n".join(f"- {msg}" for msg in progress_messages)
+    )
+
+
 with st.spinner("Running AutoML pipeline..."):
     try:
-        results = agent.run(df, target_col)
+        results = agent.run(df, target_col, on_step=on_step)
     except Exception as exc:
         st.error(f"AutoML pipeline failed: {exc}")
         st.stop()
