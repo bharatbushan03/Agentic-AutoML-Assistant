@@ -3,6 +3,7 @@ import sys
 
 import pandas as pd
 import streamlit as st
+from sklearn.model_selection import train_test_split
 
 ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
 SRC_DIR = os.path.join(ROOT_DIR, "src")
@@ -82,6 +83,15 @@ try:
         f"Processed features shape: {prep_details['processed_shape'][0]} rows, "
         f"{prep_details['processed_shape'][1]} features"
     )
+
+    X_train, X_test, y_train, y_test = train_test_split(
+        X_processed, y_processed, test_size=0.2, random_state=42
+    )
+    st.subheader("Train/test split")
+    split_cols = st.columns(3)
+    split_cols[0].metric("Training rows", X_train.shape[0])
+    split_cols[1].metric("Testing rows", X_test.shape[0])
+    split_cols[2].metric("Final features", X_train.shape[1])
 except Exception as exc:
     st.error(f"Preprocessing failed: {exc}")
 
