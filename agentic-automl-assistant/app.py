@@ -11,6 +11,7 @@ SRC_DIR = os.path.join(ROOT_DIR, "src")
 if SRC_DIR not in sys.path:
     sys.path.append(SRC_DIR)
 
+from assistant import answer_question
 from data_analyzer import analyze_dataset
 from evaluator import evaluate_models
 from model_trainer import save_model, train_models
@@ -110,6 +111,8 @@ ax.set_title("Target distribution")
 st.pyplot(fig)
 
 st.subheader("Preprocessing")
+results_df = pd.DataFrame()
+best_model = None
 try:
     X_processed, y_processed, prep_details = preprocess_data(df, target_col)
     st.write(
@@ -197,3 +200,34 @@ if analysis["numerical_summary"]:
     st.dataframe(summary_df, use_container_width=True)
 else:
     st.info("No numerical columns found.")
+
+st.subheader("Assistant")
+if "chat_history" not in st.session_state:
+    st.session_state.chat_history = []
+
+if not os.getenv("OPENAI_API_KEY"):
+    st.info(
+        "Set OPENAI_API_KEY to enable LLM responses. A fallback responder will be used otherwise."
+    )
+
+for message in st.session_state.chat_history:
+    with st.chat_message(message["role"]):
+        st.markdown(message["content"])
+
+user_question = st.chat_input("Ask a question about your dataset or models")
+if user_question:
+    st.session_state.chat_history.append({"role": "user", "content": user_question})
+    with st.chat_message("assistant"):
+        with st.spinner("Thinking..."):
+            response = answer_question(
+                question=user_question,
+                dataset_analysis=analysis,
+                problem_type=problem_type,
+                target_column=target_col,
+                evaluation_results=results_df,
+                best_model_name=best_model,
+            )
+        st.markdown(response)
+    st.session_state.chat_history.append(
+        {"role": "assistant", "content": response}
+    )
