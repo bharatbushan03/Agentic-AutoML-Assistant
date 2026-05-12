@@ -1,5 +1,15 @@
+import os
+import sys
+
 import pandas as pd
 import streamlit as st
+
+ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
+SRC_DIR = os.path.join(ROOT_DIR, "src")
+if SRC_DIR not in sys.path:
+    sys.path.append(SRC_DIR)
+
+from data_analyzer import analyze_dataset
 
 st.set_page_config(page_title="Agentic AutoML Assistant", layout="wide")
 st.title("Agentic AutoML Assistant")
@@ -16,18 +26,46 @@ except Exception as exc:
     st.error(f"Failed to read CSV: {exc}")
     st.stop()
 
+analysis = analyze_dataset(df)
+
 st.subheader("Preview (first 10 rows)")
 st.dataframe(df.head(10), use_container_width=True)
 
 st.subheader("Dataset shape")
-st.write(f"Rows: {df.shape[0]} | Columns: {df.shape[1]}")
+shape_cols = st.columns(2)
+shape_cols[0].metric("Rows", analysis["rows"])
+shape_cols[1].metric("Columns", analysis["columns"])
 
-st.subheader("Columns and data types")
-dtypes_df = pd.DataFrame({"column": df.columns, "dtype": df.dtypes.astype(str)})
-st.dataframe(dtypes_df, use_container_width=True)
-
-st.subheader("Missing values by column")
-missing_df = pd.DataFrame(
-    {"column": df.columns, "missing_values": df.isna().sum().values}
+st.subheader("Column overview")
+column_info_df = pd.DataFrame(
+    {
+        "column": analysis["column_names"],
+        "dtype": [analysis["dtypes"][col] for col in analysis["column_names"]],
+        "missing_values": [
+            analysis["missing_values"][col] for col in analysis["column_names"]
+        ],
+        "unique_values": [
+            analysis["unique_values"][col] for col in analysis["column_names"]
+        ],
+    }
 )
-st.dataframe(missing_df, use_container_width=True)
+st.dataframe(column_info_df, use_container_width=True)
+
+st.subheader("Numerical columns")
+if analysis["numerical_columns"]:
+    st.write(", ".join(analysis["numerical_columns"]))
+else:
+    st.write("None")
+
+st.subheader("Categorical columns")
+if analysis["categorical_columns"]:
+    st.write(", ".join(analysis["categorical_columns"]))
+else:
+    st.write("None")
+
+st.subheader("Numerical summary")
+if analysis["numerical_summary"]:
+    summary_df = pd.DataFrame(analysis["numerical_summary"]).T
+    st.dataframe(summary_df, use_container_width=True)
+else:
+    st.info("No numerical columns found.")
