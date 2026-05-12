@@ -125,7 +125,6 @@ def generate_report(
         lines.extend([f"- {name}" for name in model_names])
     else:
         lines.append("No models were trained.")
-")
     lines.append("")
 
     lines.append("## Evaluation Results")

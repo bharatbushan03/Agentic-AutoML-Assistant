@@ -4,6 +4,7 @@ import sys
 import matplotlib.pyplot as plt
 import pandas as pd
 import streamlit as st
+from pandas.errors import EmptyDataError, ParserError
 
 ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
 SRC_DIR = os.path.join(ROOT_DIR, "src")
@@ -24,8 +25,21 @@ if uploaded_file is None:
 
 try:
     df = pd.read_csv(uploaded_file)
+except EmptyDataError:
+    st.error("The CSV file is empty.")
+    st.stop()
+except ParserError:
+    st.error("Invalid CSV format. Please upload a valid CSV file.")
+    st.stop()
+except UnicodeDecodeError:
+    st.error("Unable to read the file. Please upload a valid UTF-8 CSV.")
+    st.stop()
 except Exception as exc:
     st.error(f"Failed to read CSV: {exc}")
+    st.stop()
+
+if df.empty or df.shape[1] == 0:
+    st.error("The CSV file is empty or has no columns.")
     st.stop()
 
 st.subheader("Preview (first 10 rows)")
@@ -33,7 +47,7 @@ st.dataframe(df.head(10), use_container_width=True)
 
 st.subheader("Target selection")
 if df.shape[1] < 2:
-    st.warning("Add at least 2 columns to select a target.")
+    st.error("Dataset must contain at least 2 columns (features + target).")
     st.stop()
 
 target_col = st.selectbox("Select target column", df.columns.tolist())
@@ -43,6 +57,14 @@ y = df[target_col]
 st.write(f"Selected target column: {target_col}")
 st.write("Feature columns:")
 st.write(", ".join(X.columns.tolist()))
+
+target_missing_ratio = float(y.isna().mean())
+if target_missing_ratio > 0.5:
+    st.error(
+        "Target column has too many missing values. "
+        "Please choose another column or clean the data."
+    )
+    st.stop()
 
 agent = AutoMLAgent()
 st.subheader("Agent progress")
@@ -60,6 +82,9 @@ def on_step(message: str) -> None:
 with st.spinner("Running AutoML pipeline..."):
     try:
         results = agent.run(df, target_col, on_step=on_step)
+    except (ValueError, RuntimeError) as exc:
+        st.error(str(exc))
+        st.stop()
     except Exception as exc:
         st.error(f"AutoML pipeline failed: {exc}")
         st.stop()
@@ -70,6 +95,7 @@ results_df = results["evaluation_results"]
 best_model = results["best_model_name"]
 model_path = results["saved_model_path"]
 report_path = results["report_path"]
+report_error = results.get("report_error")
 
 st.write(f"Detected problem type: {problem_type}")
 
@@ -172,7 +198,7 @@ if report_path:
         mime="text/markdown",
     )
 else:
-    st.warning("Report could not be generated.")
+    st.error(report_error or "Report could not be generated.")
 
 st.subheader("Numerical columns")
 if analysis["numerical_columns"]:

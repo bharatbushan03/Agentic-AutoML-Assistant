@@ -11,9 +11,15 @@ from report_generator import generate_report
 
 
 class AutoMLAgent:
-    def __init__(self, test_size: float = 0.2, random_state: int = 42) -> None:
+    def __init__(
+        self,
+        test_size: float = 0.2,
+        random_state: int = 42,
+        max_target_missing_ratio: float = 0.5,
+    ) -> None:
         self.test_size = test_size
         self.random_state = random_state
+        self.max_target_missing_ratio = max_target_missing_ratio
 
     def _emit(
         self,
@@ -41,6 +47,20 @@ class AutoMLAgent:
         target_column: str,
         on_step: Optional[Callable[[str], None]] = None,
     ) -> Dict[str, object]:
+        if df is None or df.empty or df.shape[1] == 0:
+            raise ValueError("The uploaded CSV is empty or has no columns.")
+        if df.shape[1] < 2:
+            raise ValueError("Dataset must contain at least 2 columns (features + target).")
+        if target_column not in df.columns:
+            raise ValueError("Target column not found in the dataset.")
+
+        target_missing_ratio = float(df[target_column].isna().mean())
+        if target_missing_ratio > self.max_target_missing_ratio:
+            raise ValueError(
+                "Target column has too many missing values. "
+                "Please choose another column or clean the data."
+            )
+
         messages: List[str] = []
         self._emit(messages, "Analyzing dataset structure...", on_step)
         dataset_analysis = analyze_dataset(df)
@@ -54,7 +74,15 @@ class AutoMLAgent:
             "Preprocessing numerical and categorical columns...",
             on_step,
         )
-        X_processed, y_processed, prep_details = preprocess_data(df, target_column)
+        try:
+            X_processed, y_processed, prep_details = preprocess_data(df, target_column)
+        except ValueError as exc:
+            if "No usable feature columns" in str(exc):
+                raise ValueError(
+                    "Dataset has no usable features after preprocessing. "
+                    "Add feature columns or fix data types."
+                ) from exc
+            raise
         X_train, X_test, y_train, y_test = train_test_split(
             X_processed,
             y_processed,
@@ -64,6 +92,10 @@ class AutoMLAgent:
 
         self._emit(messages, "Training multiple machine learning models...", on_step)
         models = train_models(X_train, y_train, problem_type)
+        if not models:
+            raise RuntimeError(
+                "Model training failed. No models could be trained on this dataset."
+            )
 
         self._emit(messages, "Evaluating model performance...", on_step)
         evaluation_results = pd.DataFrame()
@@ -84,13 +116,20 @@ class AutoMLAgent:
             self._emit(messages, "Saving model...", on_step)
 
         self._emit(messages, "Generating report...", on_step)
-        report_path = generate_report(
-            dataset_analysis=dataset_analysis,
-            problem_type=problem_type,
-            target_column=target_column,
-            evaluation_results=evaluation_results,
-            best_model_name=best_model_name,
-        )
+        report_path = None
+        report_error = None
+        try:
+            report_path = generate_report(
+                dataset_analysis=dataset_analysis,
+                problem_type=problem_type,
+                target_column=target_column,
+                evaluation_results=evaluation_results,
+                best_model_name=best_model_name,
+            )
+        except Exception as exc:
+            report_error = (
+                "Report generation failed. Please try again or check the logs."
+            )
 
         return {
             "dataset_analysis": dataset_analysis,
@@ -99,6 +138,7 @@ class AutoMLAgent:
             "best_model_name": best_model_name,
             "saved_model_path": saved_model_path,
             "report_path": report_path,
+            "report_error": report_error,
             "processed_shape": prep_details.get("processed_shape"),
             "train_rows": X_train.shape[0],
             "test_rows": X_test.shape[0],
