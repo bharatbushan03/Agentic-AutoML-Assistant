@@ -11,8 +11,8 @@ SRC_DIR = os.path.join(ROOT_DIR, "src")
 if SRC_DIR not in sys.path:
     sys.path.append(SRC_DIR)
 
-from agent import AutoMLAgent
-from assistant import answer_question
+from src.agent import AutoMLAgent
+from src.assistant import answer_question
 
 st.set_page_config(page_title="Agentic AutoML Assistant", layout="wide")
 st.title("Agentic AutoML Assistant")
